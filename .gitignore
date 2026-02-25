@@ -1,0 +1,9 @@
+.venv/
+venv/
+env/
+*.pyc
+__pycache__/
+pip-selfcheck.json
+data/.DS_Store
+
+# keep csv files on git, though this is a little odd
