@@ -1,0 +1,5 @@
+data_id,disaster_type_code,disaster_status_code,title,url,status_text,disaster_types,country
+52376,FL,past,Bangladesh: Floods and Landslides - May 2025,https://reliefweb.int/disaster/fl-2025-000076-bgd,Past Disaster,['Flood'],Bangladesh
+51682,FL,past,Bangladesh: Floods and Landslides - Aug 2023,https://reliefweb.int/disaster/fl-2023-000157-bgd,Past Disaster,['Flash Flood'],Bangladesh
+52427,FL,past,Yemen: Floods - Aug 2025,https://reliefweb.int/disaster/fl-2025-000151-yem,Past Disaster,['Flash Flood'],Yemen
+51780,TC,past,Tropical Cyclone Tej - Oct 2023,https://reliefweb.int/disaster/tc-2023-000212-yem,Past Disaster,['Flood'],Yemen
