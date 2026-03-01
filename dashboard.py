@@ -98,6 +98,141 @@ kpi4.metric("Formats", f"{filtered['format'].nunique()}")
 
 
 # -------------------------------
+# Original core views: Dual-Timeline + Resilience Radar
+# -------------------------------
+st.header("Original Core Views")
+
+event_options = sorted(filtered["event_label"].dropna().unique().tolist())
+
+if len(event_options) >= 1:
+    core_col1, core_col2 = st.columns(2)
+    with core_col1:
+        event_a_label = st.selectbox("Select Event A", event_options, key="core_event_a")
+    with core_col2:
+        default_idx = 1 if len(event_options) > 1 else 0
+        event_b_label = st.selectbox("Select Event B", event_options, index=default_idx, key="core_event_b")
+
+    def get_event_url_from_label(event_label):
+        url_candidates = (
+            filtered.loc[filtered["event_label"] == event_label, "disaster_url"]
+            .dropna()
+            .value_counts()
+        )
+        if url_candidates.empty:
+            return None
+        return url_candidates.index[0]
+
+    def get_event_timeline(event_label):
+        event_df = filtered[filtered["event_label"] == event_label].copy()
+        event_df = event_df.dropna(subset=["published_date"])
+        if event_df.empty:
+            return pd.DataFrame(columns=["published_date", "cumulative_news"])
+
+        timeline = (
+            event_df.groupby("published_date")
+            .size()
+            .sort_index()
+            .cumsum()
+            .reset_index(name="cumulative_news")
+        )
+        return timeline
+
+    timeline_a = get_event_timeline(event_a_label)
+    timeline_b = get_event_timeline(event_b_label)
+
+    st.subheader("Dual-Timeline: News Volume Growth")
+    fig_core_timeline = go.Figure()
+    fig_core_timeline.add_trace(
+        go.Scatter(
+            x=timeline_a["published_date"],
+            y=timeline_a["cumulative_news"],
+            mode="lines+markers",
+            name=event_a_label,
+        )
+    )
+    fig_core_timeline.add_trace(
+        go.Scatter(
+            x=timeline_b["published_date"],
+            y=timeline_b["cumulative_news"],
+            mode="lines+markers",
+            name=event_b_label,
+        )
+    )
+    fig_core_timeline.update_layout(
+        title="Cumulative News Volume Over Time",
+        xaxis_title="Date",
+        yaxis_title="Cumulative News Updates",
+    )
+    st.plotly_chart(fig_core_timeline, width="stretch", key="original_dual_timeline")
+
+    st.subheader("Resilience Radar")
+
+    def get_radar_metrics(event_url):
+        if not event_url:
+            return [1, 1, 1, 1]
+
+        enriched_row = enriched_df[enriched_df["url"] == event_url]
+        media_coverage = media_df[media_df["disaster_url"] == event_url].shape[0]
+
+        if enriched_row.empty:
+            return [1, 1, max(media_coverage, 1), 1]
+
+        description = str(enriched_row.iloc[0].get("disaster_description", "") or "")
+        description_lower = description.lower()
+
+        magnitude = description_lower.count("severe") + description_lower.count("extreme") + 1
+
+        raw_numbers = re.findall(r"\b\d{1,3}(?:,\d{3})*\b", description)
+        cleaned_numbers = [int(num.replace(",", "")) for num in raw_numbers if num]
+        exposure = max(cleaned_numbers) if cleaned_numbers else 0
+
+        vulnerability_keywords = [
+            "refugee", "malnutrition", "displacement", "poverty", "camp",
+            "food insecurity", "child", "women", "health", "cholera", "conflict"
+        ]
+        vulnerability = sum(description_lower.count(word) for word in vulnerability_keywords)
+
+        return [
+            max(magnitude, 1),
+            max(exposure, 1),
+            max(media_coverage, 1),
+            max(vulnerability, 1),
+        ]
+
+    radar_event_labels = st.multiselect(
+        "Events to include in radar",
+        options=event_options,
+        default=event_options,
+        key="radar_event_selector",
+    )
+
+    categories = ["Magnitude", "Population Exposure", "Media Coverage", "Vulnerability"]
+
+    radar_fig = go.Figure()
+    for event_label in radar_event_labels:
+        event_url = get_event_url_from_label(event_label)
+        metrics = get_radar_metrics(event_url)
+        radar_fig.add_trace(
+            go.Scatterpolar(
+                r=metrics,
+                theta=categories,
+                fill="toself",
+                name=event_label,
+            )
+        )
+
+    radar_fig.update_layout(
+        polar=dict(radialaxis=dict(visible=True)),
+        showlegend=True,
+        title="Resilience Radar",
+    )
+    if radar_event_labels:
+        st.plotly_chart(radar_fig, width="stretch", key="original_resilience_radar")
+    else:
+        st.info("Select at least one event to display the radar chart.")
+
+
+# -------------------------------
 # 1) Source concentration by event
 # Question: Which organizations dominate coverage for each event?
 # -------------------------------
